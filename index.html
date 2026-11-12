@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>VASO.GEN — Parametrik Vazo</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body {
+    background:#0a0a0a; color:#f0f0f0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    overflow:hidden; height:100vh; height:100dvh;
+  }
+  #canvasWrap {
+    position:fixed; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    touch-action:none;
+  }
+  canvas { display:block; touch-action:none; }
+
+  header {
+    position:fixed; top:0; left:0; right:0;
+    padding:12px 16px;
+    display:flex; justify-content:space-between; align-items:center;
+    z-index:100; pointer-events:none;
+  }
+  .logo { font-weight:900; font-size:18px; letter-spacing:-1px; }
+  .logo span { color:#ff3d00; }
+  .tag { font-size:9px; letter-spacing:2px; opacity:0.5; }
+
+  .panel {
+    position:fixed; bottom:0; left:0; right:0;
+    background:rgba(15,15,15,0.96);
+    backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+    border-top:1px solid rgba(255,255,255,0.08);
+    padding:16px 16px calc(16px + env(safe-area-inset-bottom));
+    z-index:50;
+    transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
+    max-height:75vh; overflow-y:auto;
+  }
+  .panel.collapsed { transform: translateY(calc(100% - 48px)); }
+  .panel-header {
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom:14px; position:sticky; top:0;
+  }
+  .panel-title { font-weight:900; font-size:12px; letter-spacing:0.5px; }
+  .panel-title span { color:#ff3d00; }
+  .toggle-btn {
+    width:32px; height:32px; border-radius:50%;
+    background:#ff3d00; border:none; color:#000;
+    font-size:13px; font-weight:700; cursor:pointer;
+  }
+  .panel.collapsed .toggle-btn { transform:rotate(180deg); }
+
+  .sliders { display:flex; flex-direction:column; gap:10px; }
+  .row {
+    display:grid; grid-template-columns:80px 1fr 40px;
+    align-items:center; gap:8px;
+  }
+  .lbl { font-size:9px; letter-spacing:1.2px; text-transform:uppercase; opacity:0.6; }
+  .val { font-size:10px; text-align:right; color:#00ff9d; font-variant-numeric:tabular-nums; }
+
+  input[type=range] {
+    -webkit-appearance:none; appearance:none; width:100%; height:2px;
+    background:#333; border-radius:2px; outline:none; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance:none; width:16px; height:16px; border-radius:50%;
+    background:#f0f0f0; border:3px solid #0a0a0a;
+    box-shadow:0 0 0 1px #f0f0f0; cursor:pointer;
+  }
+  input[type=range]::-moz-range-thumb {
+    width:16px; height:16px; border-radius:50%; background:#f0f0f0;
+    border:3px solid #0a0a0a; box-shadow:0 0 0 1px #f0f0f0;
+  }
+
+  .actions {
+    display:flex; gap:8px; margin-top:14px;
+    padding-top:12px; border-top:1px solid rgba(255,255,255,0.08);
+  }
+  .btn {
+    flex:1; padding:12px 8px; border:none;
+    font-size:10px; font-weight:700; text-transform:uppercase;
+    letter-spacing:1px; cursor:pointer; transition:all 0.15s;
+  }
+  .btn:active { transform:scale(0.97); }
+  .btn-primary { background:#ff3d00; color:#000; }
+  .btn-secondary { background:transparent; color:#f0f0f0; border:1px solid rgba(255,255,255,0.15); }
+
+  .info {
+    position:fixed; bottom:calc(75vh + 10px); left:16px;
+    font-size:9px; letter-spacing:2px; opacity:0.4;
+    pointer-events:none; z-index:5;
+  }
+  @media (min-width:900px) {
+    .panel { left:auto; right:20px; bottom:20px; width:340px; max-height:none; }
+    .info { bottom:16px; left:20px; }
+  }
+
+  .modal {
+    position:fixed; inset:0; background:rgba(5,5,5,0.97);
+    backdrop-filter:blur(12px); z-index:200;
+    display:flex; flex-direction:column;
+    opacity:0; pointer-events:none; transition:opacity 0.3s;
+  }
+  .modal.open { opacity:1; pointer-events:auto; }
+  .modal-header {
+    padding:14px 16px; display:flex; justify-content:space-between;
+    align-items:center; border-bottom:1px solid rgba(255,255,255,0.08);
+  }
+  .modal-title { font-weight:900; font-size:13px; }
+  .modal-title span { color:#00ff9d; }
+  .modal-sub { font-size:8px; letter-spacing:2px; opacity:0.5; margin-top:2px; }
+  .close-btn {
+    width:36px; height:36px; border-radius:50%; background:transparent;
+    border:1px solid rgba(255,255,255,0.2); color:#f0f0f0;
+    font-size:16px; cursor:pointer;
+  }
+  #previewWrap { flex:1; position:relative; touch-action:none; display:flex; align-items:center; justify-content:center; }
+  .modal-footer {
+    padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    display:flex; gap:8px; border-top:1px solid rgba(255,255,255,0.08);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">VASO<span>·</span>GEN</div>
+  <div class="tag">PARAMETRIC</div>
+</header>
+
+<div id="canvasWrap"></div>
+<div class="info" id="info">VERTEX: —</div>
+
+<div class="panel" id="panel">
+  <div class="panel-header" id="handle">
+    <div class="panel-title">KONTROL <span>PANELİ</span></div>
+    <button class="toggle-btn">▲</button>
+  </div>
+  <div class="sliders">
+    <div class="row"><div class="lbl">Yükseklik</div><input type="range" id="height" min="60" max="200" value="120"><div class="val" id="heightVal">120</div></div>
+    <div class="row"><div class="lbl">Taban</div><input type="range" id="baseR" min="10" max="60" value="30"><div class="val" id="baseRVal">30</div></div>
+    <div class="row"><div class="lbl">Boyun</div><input type="range" id="neckR" min="8" max="50" value="22"><div class="val" id="neckRVal">22</div></div>
+    <div class="row"><div class="lbl">Şişkinlik</div><input type="range" id="bulge" min="0" max="60" value="25"><div class="val" id="bulgeVal">25</div></div>
+    <div class="row"><div class="lbl">Büküm</div><input type="range" id="twist" min="0" max="8" value="0" step="0.5"><div class="val" id="twistVal">0</div></div>
+    <div class="row"><div class="lbl">Dalga</div><input type="range" id="wave" min="0" max="10" value="0"><div class="val" id="waveVal">0</div></div>
+    <div class="row"><div class="lbl">Segment</div><input type="range" id="segments" min="3" max="12" value="4" step="1"><div class="val" id="segmentsVal">4</div></div>
+  </div>
+  <div class="actions">
+    <button class="btn btn-secondary" id="randomBtn">⟲ RASTGELE</button>
+    <button class="btn btn-secondary" id="previewBtn">👁 ÖNİZLE</button>
+    <button class="btn btn-primary" id="exportBtn">↓ STL</button>
+  </div>
+</div>
+
+<div class="modal" id="previewModal">
+  <div class="modal-header">
+    <div>
+      <div class="modal-title">STL <span>ÖNİZLEME</span></div>
+      <div class="modal-sub" id="previewSub">HAZIRLANIYOR...</div>
+    </div>
+    <button class="close-btn" id="closePreview">✕</button>
+  </div>
+  <div id="previewWrap"></div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" id="closePreview2">KAPAT</button>
+    <button class="btn btn-primary" id="exportFromPreview">↓ İNDİR</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ============ PARAMETRELER ============
+const params = {
+  height: 120, baseR: 30, neckR: 22, bulge: 25,
+  twist: 0, wave: 0, segments: 4,
+  radialSegments: 64, heightSegments: 60,
+};
+
+// ============ GEOMETRİ ÜRETİCİ ============
+function profileRadius(t) {
+  const { baseR, neckR, bulge } = params;
+  const baseCurve = baseR * (1 - t) + neckR * t;
+  const bulgeCurve = Math.sin(t * Math.PI) * bulge;
+  const taper = Math.pow(1 - t, 0.15) * 0.15 + 0.85;
+  return (baseCurve + bulgeCurve) * taper;
+}
+
+function buildMesh() {
+  const { height, twist, wave, segments, radialSegments, heightSegments } = params;
+  const verts = [];
+  const faces = [];
+
+  // Vertex grid
+  for (let iy = 0; iy <= heightSegments; iy++) {
+    const t = iy / heightSegments;
+    const y = t * height;
+    const rBase = profileRadius(t);
+    const segFactor = segments;
+    const waveAmp = wave * 0.01 * rBase;
+
+    for (let ix = 0; ix <= radialSegments; ix++) {
+      const u = ix / radialSegments;
+      const theta = u * Math.PI * 2;
+      const lob = Math.cos(theta * segFactor);
+      const lobMix = 0.5 + 0.5 * lob;
+      const smoothLob = Math.pow(lobMix, 0.6);
+      const segInf = Math.min((segFactor - 3) / 9, 1) * 0.35;
+      const rSeg = rBase * (1 - segInf + segInf * (0.6 + 0.8 * smoothLob));
+      const twistAngle = twist * 0.1 * t;
+      const waveOff = Math.sin(t * Math.PI * 6 + theta * 3) * waveAmp;
+      const r = rSeg + waveOff;
+      verts.push({
+        x: r * Math.cos(theta + twistAngle),
+        y: y,
+        z: r * Math.sin(theta + twistAngle),
+      });
+    }
+  }
+
+  const rowLen = radialSegments + 1;
+
+  // Side faces
+  for (let iy = 0; iy < heightSegments; iy++) {
+    for (let ix = 0; ix < radialSegments; ix++) {
+      const a = iy * rowLen + ix;
+      const b = a + 1;
+      const c = a + rowLen;
+      const d = c + 1;
+      faces.push([a, c, b]);
+      faces.push([b, c, d]);
+    }
+  }
+
+  // Bottom cap
+  const bottomCenter = verts.length;
+  verts.push({ x: 0, y: 0, z: 0 });
+  for (let ix = 0; ix < radialSegments; ix++) {
+    faces.push([bottomCenter, ix + 1, ix]);
+  }
+
+  // Top cap
+  const topStart = heightSegments * rowLen;
+  const topCenter = verts.length;
+  verts.push({ x: 0, y: height, z: 0 });
+  for (let ix = 0; ix < radialSegments; ix++) {
+    faces.push([topCenter, topStart + ix, topStart + ix + 1]);
+  }
+
+  return { verts, faces };
+}
+
+// ============ MINI 3D RENDERER (Canvas 2D) ============
+class Renderer {
+  constructor(container) {
+    this.container = container;
+    this.canvas = document.createElement('canvas');
+    this.ctx = this.canvas.getContext('2d');
+    container.appendChild(this.canvas);
+    this.resize();
+
+    // Kamera açıları
+    this.rotX = 0.25;
+    this.rotY = 0.6;
+    this.zoom = 1;
+    this.targetY = params.height * 0.5;
+
+    // Drag state
+    this.dragging = false;
+    this.lastX = 0; this.lastY = 0;
+    this.autoRotate = true;
+    this.autoRotateSpeed = 0.003;
+    this.lastInteraction = 0;
+
+    this.bindEvents();
+    this.mesh = null;
+  }
+
+  resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = this.container.getBoundingClientRect();
+    this.w = rect.width;
+    this.h = rect.height;
+    this.canvas.width = this.w * dpr;
+    this.canvas.height = this.h * dpr;
+    this.canvas.style.width = this.w + 'px';
+    this.canvas.style.height = this.h + 'px';
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  bindEvents() {
+    const c = this.canvas;
+    const onStart = (x, y) => {
+      this.dragging = true;
+      this.lastX = x; this.lastY = y;
+      this.autoRotate = false;
+      this.lastInteraction = Date.now();
+    };
+    const onMove = (x, y) => {
+      if (!this.dragging) return;
+      const dx = x - this.lastX;
+      const dy = y - this.lastY;
+      this.rotY += dx * 0.008;
+      this.rotX += dy * 0.008;
+      this.rotX = Math.max(-1.4, Math.min(1.4, this.rotX));
+      this.lastX = x; this.lastY = y;
+    };
+    const onEnd = () => {
+      this.dragging = false;
+      setTimeout(() => {
+        if (Date.now() - this.lastInteraction > 1500) this.autoRotate = true;
+      }, 1500);
+    };
+
+    c.addEventListener('mousedown', e => { onStart(e.clientX, e.clientY); });
+    window.addEventListener('mousemove', e => { onMove(e.clientX, e.clientY); });
+    window.addEventListener('mouseup', onEnd);
+
+    c.addEventListener('touchstart', e => {
+      if (e.touches.length === 1) onStart(e.touches[0].clientX, e.touches[0].clientY);
+      else if (e.touches.length === 2) {
+        this.pinchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+      }
+    }, { passive: true });
+
+    c.addEventListener('touchmove', e => {
+      e.preventDefault();
+      if (e.touches.length === 1) {
+        onMove(e.touches[0].clientX, e.touches[0].clientY);
+      } else if (e.touches.length === 2 && this.pinchDist) {
+        const d = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        this.zoom *= d / this.pinchDist;
+        this.zoom = Math.max(0.4, Math.min(2.5, this.zoom));
+        this.pinchDist = d;
+      }
+    }, { passive: false });
+
+    c.addEventListener('touchend', () => { onEnd(); this.pinchDist = null; }, { passive: true });
+
+    c.addEventListener('wheel', e => {
+      e.preventDefault();
+      this.zoom *= e.deltaY > 0 ? 1.1 : 0.9;
+      this.zoom = Math.max(0.4, Math.min(2.5, this.zoom));
+      this.lastInteraction = Date.now();
+    }, { passive: false });
+  }
+
+  setMesh(mesh) { this.mesh = mesh; }
+
+  project(p) {
+    // Rotasyon: önce Y (yaw), sonra X (pitch)
+    const cy = Math.cos(this.rotY), sy = Math.sin(this.rotY);
+    const cx = Math.cos(this.rotX), sx = Math.sin(this.rotX);
+
+    // Merkezi hedefe göre kaydır
+    const py = p.y - this.targetY;
+
+    // Yaw (Y etrafında)
+    const x1 = p.x * cy + p.z * sy;
+    const z1 = -p.x * sy + p.z * cy;
+    const y1 = py;
+
+    // Pitch (X etrafında)
+    const y2 = y1 * cx - z1 * sx;
+    const z2 = y1 * sx + z1 * cx;
+
+    // Perspective
+    const camDist = 400;
+    const z = z2 + camDist;
+    if (z < 1) return null;
+
+    const fov = 400;
+    const scale = (fov / z) * this.zoom;
+
+    return {
+      x: this.w / 2 + x1 * scale,
+      y: this.h / 2 - y2 * scale,
+      z: z2,
+      scale: scale,
+    };
+  }
+
+  render() {
+    const ctx = this.ctx;
+    const w = this.w, h = this.h;
+
+    // Arkaplan gradient
+    const grad = ctx.createRadialGradient(w/2, h*0.3, 0, w/2, h*0.5, Math.max(w,h)*0.8);
+    grad.addColorStop(0, '#1a1a1a');
+    grad.addColorStop(1, '#050505');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+
+    if (!this.mesh) return;
+
+    // Auto rotate
+    if (this.autoRotate && !this.dragging) {
+      this.rotY += this.autoRotateSpeed;
+    }
+
+    const { verts, faces } = this.mesh;
+
+    // Project all vertices
+    const projected = verts.map(v => this.project(v));
+
+    // Face'leri z'ye göre sırala (back-to-front)
+    const faceData = [];
+    for (const face of faces) {
+      const p0 = projected[face[0]];
+      const p1 = projected[face[1]];
+      const p2 = projected[face[2]];
+      if (!p0 || !p1 || !p2) continue;
+
+      const avgZ = (p0.z + p1.z + p2.z) / 3;
+
+      // Normal hesapla (world space)
+      const v0 = verts[face[0]];
+      const v1 = verts[face[1]];
+      const v2 = verts[face[2]];
+      const ax = v1.x - v0.x, ay = v1.y - v0.y, az = v1.z - v0.z;
+      const bx = v2.x - v0.x, by = v2.y - v0.y, bz = v2.z - v0.z;
+      const nx = ay * bz - az * by;
+      const ny = az * bx - ax * bz;
+      const nz = ax * by - ay * bx;
+      const nlen = Math.sqrt(nx*nx + ny*ny + nz*nz) || 1;
+
+      // Işık yönü (yukarı-sağ-ön)
+      const lx = 0.5, ly = 0.7, lz = 0.5;
+      let dot = (nx/lx*1 + ny/ly*1 + nz/lz*1);
+      // Normalize light
+      const lightLen = Math.sqrt(lx*lx + ly*ly + lz*lz);
+      dot = (nx * lx + ny * ly + nz * lz) / (nlen * lightLen);
+
+      // Ambient + diffuse
+      const shade = Math.max(0.15, Math.min(1, 0.25 + dot * 0.85));
+
+      faceData.push({ p0, p1, p2, z: avgZ, shade });
+    }
+
+    // Sort: en arkadan öne
+    faceData.sort((a, b) => b.z - a.z);
+
+    // Draw
+    for (const f of faceData) {
+      const s = f.shade;
+      // Sıcak krem renk + hafif neon vurgu
+      const r = Math.round(245 * s);
+      const g = Math.round(240 * s);
+      const b = Math.round(232 * s);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.strokeStyle = `rgb(${r},${g},${b})`;
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.moveTo(f.p0.x, f.p0.y);
+      ctx.lineTo(f.p1.x, f.p1.y);
+      ctx.lineTo(f.p2.x, f.p2.y);
+      ctx.closePath();
+      ctx.fill();
+      // Edges (anti-alias için)
+      ctx.stroke();
+    }
+
+    // Zemin gölgesi (basit elips)
+    ctx.globalAlpha = 0.35;
+    const shadowGrad = ctx.createRadialGradient(w/2, h*0.82, 0, w/2, h*0.82, w*0.35);
+    shadowGrad.addColorStop(0, 'rgba(0,0,0,0.8)');
+    shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = shadowGrad;
+    ctx.beginPath();
+    ctx.ellipse(w/2, h*0.82, w*0.35 * this.zoom, h*0.06 * this.zoom, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ============ STL EXPORT ============
+function exportSTL(mesh, filename) {
+  const { verts, faces } = mesh;
+  const lines = ['solid vase'];
+  for (const [i0, i1, i2] of faces) {
+    const v0 = verts[i0], v1 = verts[i1], v2 = verts[i2];
+    // Normal
+    const ax = v1.x-v0.x, ay = v1.y-v0.y, az = v1.z-v0.z;
+    const bx = v2.x-v0.x, by = v2.y-v0.y, bz = v2.z-v0.z;
+    let nx = ay*bz - az*by, ny = az*bx - ax*bz, nz = ax*by - ay*bx;
+    const len = Math.hypot(nx, ny, nz) || 1;
+    nx/=len; ny/=len; nz/=len;
+    lines.push(`  facet normal ${nx.toFixed(6)} ${ny.toFixed(6)} ${nz.toFixed(6)}`);
+    lines.push(`    outer loop`);
+    lines.push(`      vertex ${v0.x.toFixed(4)} ${v0.y.toFixed(4)} ${v0.z.toFixed(4)}`);
+    lines.push(`      vertex ${v1.x.toFixed(4)} ${v1.y.toFixed(4)} ${v1.z.toFixed(4)}`);
+    lines.push(`      vertex ${v2.x.toFixed(4)} ${v2.y.toFixed(4)} ${v2.z.toFixed(4)}`);
+    lines.push(`    endloop`);
+    lines.push(`  endfacet`);
+  }
+  lines.push('endsolid vase');
+
+  const blob = new Blob([lines.join('\n')], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ============ UYGULAMA ============
+const mainRenderer = new Renderer(document.getElementById('canvasWrap'));
+let currentMesh = null;
+
+function rebuild() {
+  currentMesh = buildMesh();
+  mainRenderer.mesh = currentMesh;
+  const vCount = currentMesh.verts.length;
+  document.getElementById('info').textContent = `VERTEX: ${vCount.toLocaleString('tr-TR')}`;
+}
+
+// Slider binding
+const sliderMap = {
+  height:'heightVal', baseR:'baseRVal', neckR:'neckRVal',
+  bulge:'bulgeVal', twist:'twistVal', wave:'waveVal', segments:'segmentsVal',
+};
+Object.entries(sliderMap).forEach(([k, valId]) => {
+  const input = document.getElementById(k);
+  const label = document.getElementById(valId);
+  input.addEventListener('input', e => {
+    params[k] = parseFloat(e.target.value);
+    label.textContent = e.target.value;
+    rebuild();
+  });
+  params[k] = parseFloat(input.value);
+  label.textContent = input.value;
+});
+
+// Random
+document.getElementById('randomBtn').addEventListener('click', () => {
+  const r = (a, b, s=1) => {
+    const v = a + Math.random()*(b-a);
+    return s === 1 ? Math.round(v) : Math.round(v/s)*s;
+  };
+  const np = {
+    height: r(80, 190), baseR: r(15, 50), neckR: r(10, 40),
+    bulge: r(0, 50), twist: r(0, 6, 0.5), wave: r(0, 8), segments: r(3, 10),
+  };
+  Object.entries(np).forEach(([k, v]) => {
+    params[k] = v;
+    document.getElementById(k).value = v;
+    document.getElementById(sliderMap[k]).textContent = v;
+  });
+  rebuild();
+});
+
+// Panel toggle
+const panel = document.getElementById('panel');
+document.getElementById('handle').addEventListener('click', () => {
+  panel.classList.toggle('collapsed');
+});
+
+// Export
+document.getElementById('exportBtn').addEventListener('click', () => {
+  if (!currentMesh) return;
+  exportSTL(currentMesh, `vaso-${Date.now()}.stl`);
+  const btn = document.getElementById('exportBtn');
+  const orig = btn.textContent;
+  btn.textContent = '✓ İNDİ';
+  setTimeout(() => btn.textContent = orig, 1200);
+});
+
+// ============ ÖNİZLEME MODAL ============
+let previewRenderer = null;
+let previewMesh = null;
+
+function openPreview() {
+  const modal = document.getElementById('previewModal');
+  modal.classList.add('open');
+
+  requestAnimationFrame(() => {
+    const wrap = document.getElementById('previewWrap');
+    if (!previewRenderer) {
+      previewRenderer = new Renderer(wrap);
+      previewRenderer.autoRotateSpeed = 0.005;
+    } els
