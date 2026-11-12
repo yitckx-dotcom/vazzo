@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>VASO.GEN — Parametrik Vazo</title>
+<title>VASO.GEN — Post-Modern</title>
 <style>
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html, body {
@@ -36,7 +36,7 @@
     padding:16px 16px calc(16px + env(safe-area-inset-bottom));
     z-index:50;
     transition: transform 0.4s cubic-bezier(0.4,0,0.2,1);
-    max-height:75vh; overflow-y:auto;
+    max-height:80vh; overflow-y:auto;
   }
   .panel.collapsed { transform: translateY(calc(100% - 48px)); }
   .panel-header {
@@ -52,13 +52,61 @@
   }
   .panel.collapsed .toggle-btn { transform:rotate(180deg); }
 
-  .sliders { display:flex; flex-direction:column; gap:10px; }
-  .row {
-    display:grid; grid-template-columns:80px 1fr 40px;
-    align-items:center; gap:8px;
+  /* POST-MODERN DNA BUTONLARI */
+  .styles {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-bottom: 16px;
   }
+  .style-btn {
+    background: #111;
+    border: 1px solid #333;
+    color: #888;
+    padding: 8px 4px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .style-btn.active {
+    background: #ff3d00;
+    border-color: #ff3d00;
+    color: #000;
+  }
+
+  .sliders { display:flex; flex-direction:column; gap:12px; }
+  .row { display:grid; grid-template-columns:80px 1fr 40px; align-items:center; gap:8px; }
   .lbl { font-size:9px; letter-spacing:1.2px; text-transform:uppercase; opacity:0.6; }
   .val { font-size:10px; text-align:right; color:#00ff9d; font-variant-numeric:tabular-nums; }
+
+  /* DOKU SEÇİCİ */
+  .texture-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+    margin-bottom: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .tex-btn {
+    background: #111;
+    border: 1px solid #333;
+    color: #888;
+    padding: 6px 12px;
+    font-size: 9px;
+    border-radius: 20px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tex-btn.active {
+    background: #00ff9d;
+    border-color: #00ff9d;
+    color: #000;
+  }
 
   input[type=range] {
     -webkit-appearance:none; appearance:none; width:100%; height:2px;
@@ -69,14 +117,10 @@
     background:#f0f0f0; border:3px solid #0a0a0a;
     box-shadow:0 0 0 1px #f0f0f0; cursor:pointer;
   }
-  input[type=range]::-moz-range-thumb {
-    width:16px; height:16px; border-radius:50%; background:#f0f0f0;
-    border:3px solid #0a0a0a; box-shadow:0 0 0 1px #f0f0f0;
-  }
 
   .actions {
-    display:flex; gap:8px; margin-top:14px;
-    padding-top:12px; border-top:1px solid rgba(255,255,255,0.08);
+    display:flex; gap:8px; margin-top:16px;
+    padding-top:16px; border-top:1px solid rgba(255,255,255,0.08);
   }
   .btn {
     flex:1; padding:12px 8px; border:none;
@@ -88,13 +132,13 @@
   .btn-secondary { background:transparent; color:#f0f0f0; border:1px solid rgba(255,255,255,0.15); }
 
   .info {
-    position:fixed; bottom:calc(75vh + 10px); left:16px;
+    position:fixed; top:60px; left:16px;
     font-size:9px; letter-spacing:2px; opacity:0.4;
     pointer-events:none; z-index:5;
   }
   @media (min-width:900px) {
-    .panel { left:auto; right:20px; bottom:20px; width:340px; max-height:none; }
-    .info { bottom:16px; left:20px; }
+    .panel { left:auto; right:20px; bottom:20px; width:380px; max-height:none; }
+    .info { top:80px; }
   }
 
   .modal {
@@ -116,7 +160,7 @@
     border:1px solid rgba(255,255,255,0.2); color:#f0f0f0;
     font-size:16px; cursor:pointer;
   }
-  #previewWrap { flex:1; position:relative; touch-action:none; display:flex; align-items:center; justify-content:center; }
+  #previewWrap { flex:1; position:relative; touch-action:none; }
   .modal-footer {
     padding:12px 16px calc(12px + env(safe-area-inset-bottom));
     display:flex; gap:8px; border-top:1px solid rgba(255,255,255,0.08);
@@ -127,7 +171,7 @@
 
 <header>
   <div class="logo">VASO<span>·</span>GEN</div>
-  <div class="tag">PARAMETRIC</div>
+  <div class="tag">POST-MODERN v2.0</div>
 </header>
 
 <div id="canvasWrap"></div>
@@ -135,22 +179,41 @@
 
 <div class="panel" id="panel">
   <div class="panel-header" id="handle">
-    <div class="panel-title">KONTROL <span>PANELİ</span></div>
+    <div class="panel-title">TASARIM <span>LABORATUVARI</span></div>
     <button class="toggle-btn">▲</button>
   </div>
-  <div class="sliders">
-    <div class="row"><div class="lbl">Yükseklik</div><input type="range" id="height" min="60" max="200" value="120"><div class="val" id="heightVal">120</div></div>
-    <div class="row"><div class="lbl">Taban</div><input type="range" id="baseR" min="10" max="60" value="30"><div class="val" id="baseRVal">30</div></div>
-    <div class="row"><div class="lbl">Boyun</div><input type="range" id="neckR" min="8" max="50" value="22"><div class="val" id="neckRVal">22</div></div>
-    <div class="row"><div class="lbl">Şişkinlik</div><input type="range" id="bulge" min="0" max="60" value="25"><div class="val" id="bulgeVal">25</div></div>
-    <div class="row"><div class="lbl">Büküm</div><input type="range" id="twist" min="0" max="8" value="0" step="0.5"><div class="val" id="twistVal">0</div></div>
-    <div class="row"><div class="lbl">Dalga</div><input type="range" id="wave" min="0" max="10" value="0"><div class="val" id="waveVal">0</div></div>
-    <div class="row"><div class="lbl">Segment</div><input type="range" id="segments" min="3" max="12" value="4" step="1"><div class="val" id="segmentsVal">4</div></div>
+
+  <!-- HAZIR STİLLER -->
+  <div class="styles">
+    <button class="style-btn active" onclick="applyStyle('classic', this)">Klasik</button>
+    <button class="style-btn" onclick="applyStyle('brutalist', this)">Brütal</button>
+    <button class="style-btn" onclick="applyStyle('organic', this)">Organik</button>
+    <button class="style-btn" onclick="applyStyle('cyber', this)">Cyber</button>
   </div>
+
+  <!-- DOKULAR -->
+  <div class="texture-row">
+    <button class="tex-btn active" onclick="setTexture('smooth', this)">Düz</button>
+    <button class="tex-btn" onclick="setTexture('ripple', this)">Kabarcık</button>
+    <button class="tex-btn" onclick="setTexture('lattice', this)">Kafes</button>
+    <button class="tex-btn" onclick="setTexture('stripe', this)">Çizgili</button>
+    <button class="tex-btn" onclick="setTexture('checker', this)">Kareli</button>
+  </div>
+
+  <div class="sliders">
+    <div class="row"><div class="lbl">Yükseklik</div><input type="range" id="height" min="60" max="220" value="120"><div class="val" id="heightVal">120</div></div>
+    <div class="row"><div class="lbl">Taban</div><input type="range" id="baseR" min="10" max="70" value="30"><div class="val" id="baseRVal">30</div></div>
+    <div class="row"><div class="lbl">Boyun</div><input type="range" id="neckR" min="5" max="60" value="22"><div class="val" id="neckRVal">22</div></div>
+    <div class="row"><div class="lbl">Şişkinlik</div><input type="range" id="bulge" min="0" max="80" value="25"><div class="val" id="bulgeVal">25</div></div>
+    <div class="row"><div class="lbl">Büküm</div><input type="range" id="twist" min="0" max="10" value="0" step="0.5"><div class="val" id="twistVal">0</div></div>
+    <div class="row"><div class="lbl">Dalga</div><input type="range" id="wave" min="0" max="15" value="0" step="1"><div class="val" id="waveVal">0</div></div>
+    <div class="row"><div class="lbl">Segment</div><input type="range" id="segments" min="3" max="16" value="4" step="1"><div class="val" id="segmentsVal">4</div></div>
+    <div class="row"><div class="lbl">Doku Şiddeti</div><input type="range" id="texIntensity" min="0" max="100" value="40"><div class="val" id="texIntensityVal">40</div></div>
+  </div>
+
   <div class="actions">
-    <button class="btn btn-secondary" id="randomBtn">⟲ RASTGELE</button>
     <button class="btn btn-secondary" id="previewBtn">👁 ÖNİZLE</button>
-    <button class="btn btn-primary" id="exportBtn">↓ STL</button>
+    <button class="btn btn-primary" id="exportBtn">↓ STL İNDİR</button>
   </div>
 </div>
 
@@ -172,19 +235,51 @@
 <script>
 'use strict';
 
+// --- PARAMETRELER ---
 const params = {
   height: 120, baseR: 30, neckR: 22, bulge: 25,
   twist: 0, wave: 0, segments: 4,
-  radialSegments: 36, // Daha hafif render için düşürüldü
-  heightSegments: 40,
+  texIntensity: 40,
+  texture: 'smooth',
+  radialSegments: 48, // Dokuların pürüzsüz görünmesi için biraz artırıldı
+  heightSegments: 60,
 };
 
-function profileRadius(t) {
+// --- GEOMETRİ VE DOKU ÜRETİCİ ---
+function getProfileRadius(t) {
   const { baseR, neckR, bulge } = params;
   const baseCurve = baseR * (1 - t) + neckR * t;
   const bulgeCurve = Math.sin(t * Math.PI) * bulge;
   const taper = Math.pow(1 - t, 0.15) * 0.15 + 0.85;
   return (baseCurve + bulgeCurve) * taper;
+}
+
+function getTextureOffset(u, t, theta) {
+  const intensity = params.texIntensity / 100;
+  if (intensity === 0) return 0;
+  
+  let offset = 0;
+  switch(params.texture) {
+    case 'ripple': // Kabarcıklar
+      offset = Math.sin(t * 30) * Math.cos(theta * 8) * intensity * 15;
+      break;
+    case 'lattice': // Kafes / Izgara
+      const gridU = Math.abs(Math.sin(theta * 12));
+      const gridV = Math.abs(Math.sin(t * 20));
+      offset = (gridU * gridV) * intensity * 20 - (intensity * 10);
+      break;
+    case 'stripe': // Yatay/Dikey Çizgiler
+      offset = Math.sin(t * 50) * intensity * 10;
+      break;
+    case 'checker': // Kareli
+      const checkU = Math.floor(theta / (Math.PI/6)) % 2;
+      const checkV = Math.floor(t * 15) % 2;
+      offset = (checkU === checkV ? 1 : -1) * intensity * 12;
+      break;
+    default:
+      offset = 0;
+  }
+  return offset;
 }
 
 function buildMesh() {
@@ -195,31 +290,37 @@ function buildMesh() {
   for (let iy = 0; iy <= heightSegments; iy++) {
     const t = iy / heightSegments;
     const y = t * height;
-    const rBase = profileRadius(t);
+    const rBase = getProfileRadius(t);
     const segFactor = segments;
     const waveAmp = wave * 0.01 * rBase;
 
     for (let ix = 0; ix <= radialSegments; ix++) {
       const u = ix / radialSegments;
       const theta = u * Math.PI * 2;
+      
+      // Şekil bozulması (Loblar)
       const lob = Math.cos(theta * segFactor);
       const lobMix = 0.5 + 0.5 * lob;
       const smoothLob = Math.pow(lobMix, 0.6);
-      const segInf = Math.min((segFactor - 3) / 9, 1) * 0.35;
-      const rSeg = rBase * (1 - segInf + segInf * (0.6 + 0.8 * smoothLob));
+      const segInf = Math.min((segFactor - 3) / 13, 1) * 0.4;
+      const rSeg = rBase * (1 - segInf + segInf * (0.5 + 1.0 * smoothLob));
+      
+      // Büküm ve Dalga
       const twistAngle = twist * 0.1 * t;
       const waveOff = Math.sin(t * Math.PI * 6 + theta * 3) * waveAmp;
-      const r = rSeg + waveOff;
-      verts.push({
-        x: r * Math.cos(theta + twistAngle),
-        y: y,
-        z: r * Math.sin(theta + twistAngle),
-      });
+      
+      // Doku Eklemesi
+      const texOff = getTextureOffset(u, t, theta);
+
+      const r = rSeg + waveOff + texOff;
+      const x = r * Math.cos(theta + twistAngle);
+      const z = r * Math.sin(theta + twistAngle);
+      
+      verts.push({ x, y, z });
     }
   }
 
   const rowLen = radialSegments + 1;
-
   for (let iy = 0; iy < heightSegments; iy++) {
     for (let ix = 0; ix < radialSegments; ix++) {
       const a = iy * rowLen + ix;
@@ -231,10 +332,12 @@ function buildMesh() {
     }
   }
 
+  // Taban kapatma
   const bottomCenter = verts.length;
   verts.push({ x: 0, y: 0, z: 0 });
   for (let ix = 0; ix < radialSegments; ix++) faces.push([bottomCenter, ix + 1, ix]);
 
+  // Ağız kapatma
   const topStart = heightSegments * rowLen;
   const topCenter = verts.length;
   verts.push({ x: 0, y: height, z: 0 });
@@ -243,13 +346,13 @@ function buildMesh() {
   return { verts, faces };
 }
 
+// --- RENDERER (3D Çizim) ---
 class Renderer {
-  constructor(container, isMain = false) {
+  constructor(container) {
     this.container = container;
     this.canvas = document.createElement('canvas');
-    this.ctx = this.canvas.getContext('2d', { alpha: false }); // Performans artışı
+    this.ctx = this.canvas.getContext('2d', { alpha: false });
     container.appendChild(this.canvas);
-    this.isMain = isMain;
     
     this.rotX = 0.2;
     this.rotY = 0.6;
@@ -258,9 +361,6 @@ class Renderer {
     this.dragging = false;
     this.lastX = 0; this.lastY = 0;
     this.autoRotate = true;
-    this.lastInteraction = 0;
-
-    // Yavaş render döngüsünü önlemek için requestAnimationFrame kontrolü
     this.needsRender = true;
 
     this.bindEvents();
@@ -287,51 +387,36 @@ class Renderer {
       this.dragging = true;
       this.lastX = x; this.lastY = y;
       this.autoRotate = false;
-      this.lastInteraction = Date.now();
     };
     const onMove = (x, y) => {
       if (!this.dragging) return;
-      const dx = x - this.lastX;
-      const dy = y - this.lastY;
-      this.rotY += dx * 0.01;
-      this.rotX += dy * 0.01;
+      this.rotY += (x - this.lastX) * 0.01;
+      this.rotX += (y - this.lastY) * 0.01;
       this.rotX = Math.max(-1.4, Math.min(1.4, this.rotX));
       this.lastX = x; this.lastY = y;
       this.needsRender = true;
     };
     const onEnd = () => {
       this.dragging = false;
-      setTimeout(() => {
-        if (Date.now() - this.lastInteraction > 1000) {
-          this.autoRotate = true;
-          this.needsRender = true;
-        }
-      }, 1000);
+      setTimeout(() => { this.autoRotate = true; this.needsRender = true; }, 2000);
     };
 
-    c.addEventListener('mousedown', e => { onStart(e.clientX, e.clientY); });
-    window.addEventListener('mousemove', e => { onMove(e.clientX, e.clientY); });
+    c.addEventListener('mousedown', e => onStart(e.clientX, e.clientY));
+    window.addEventListener('mousemove', e => onMove(e.clientX, e.clientY));
     window.addEventListener('mouseup', onEnd);
 
     c.addEventListener('touchstart', e => {
       if (e.touches.length === 1) onStart(e.touches[0].clientX, e.touches[0].clientY);
       else if (e.touches.length === 2) {
-        this.pinchDist = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY
-        );
+        this.pinchDist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
       }
     }, { passive: true });
 
     c.addEventListener('touchmove', e => {
       e.preventDefault();
-      if (e.touches.length === 1) {
-        onMove(e.touches[0].clientX, e.touches[0].clientY);
-      } else if (e.touches.length === 2 && this.pinchDist) {
-        const d = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY
-        );
+      if (e.touches.length === 1) onMove(e.touches[0].clientX, e.touches[0].clientY);
+      else if (e.touches.length === 2 && this.pinchDist) {
+        const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
         this.zoom *= d / this.pinchDist;
         this.zoom = Math.max(0.4, Math.min(2.5, this.zoom));
         this.pinchDist = d;
@@ -342,10 +427,7 @@ class Renderer {
     c.addEventListener('touchend', () => { onEnd(); this.pinchDist = null; }, { passive: true });
   }
 
-  setMesh(mesh) { 
-    this.mesh = mesh; 
-    this.needsRender = true; 
-  }
+  setMesh(mesh) { this.mesh = mesh; this.needsRender = true; }
 
   project(p) {
     const cy = Math.cos(this.rotY), sy = Math.sin(this.rotY);
@@ -355,7 +437,6 @@ class Renderer {
     const x1 = p.x * cy + p.z * sy;
     const z1 = -p.x * sy + p.z * cy;
     const y1 = py;
-    
     const y2 = y1 * cx - z1 * sx;
     const z2 = y1 * sx + z1 * cx;
     
@@ -363,28 +444,17 @@ class Renderer {
     const z = z2 + camDist;
     if (z < 1) return null;
     
-    const fov = 400;
-    const scale = (fov / z) * this.zoom;
-    
-    return {
-      x: this.w / 2 + x1 * scale,
-      y: this.h / 2 - y2 * scale,
-      z: z2,
-    };
+    const scale = (400 / z) * this.zoom;
+    return { x: this.w / 2 + x1 * scale, y: this.h / 2 - y2 * scale, z: z2 };
   }
 
   render() {
     if (!this.needsRender && !this.autoRotate) return;
-    
-    if (this.autoRotate && !this.dragging) {
-      this.rotY += 0.005;
-    }
+    if (this.autoRotate && !this.dragging) this.rotY += 0.006;
 
     const ctx = this.ctx;
-    const w = this.w, h = this.h;
-    
     ctx.fillStyle = '#0a0a0a';
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillRect(0, 0, this.w, this.h);
 
     if (!this.mesh) return;
 
@@ -394,26 +464,21 @@ class Renderer {
 
     for (let i = 0; i < faces.length; i++) {
       const face = faces[i];
-      const p0 = projected[face[0]];
-      const p1 = projected[face[1]];
-      const p2 = projected[face[2]];
+      const p0 = projected[face[0]], p1 = projected[face[1]], p2 = projected[face[2]];
       if (!p0 || !p1 || !p2) continue;
 
       const avgZ = (p0.z + p1.z + p2.z) / 3;
-      
       const v0 = verts[face[0]], v1 = verts[face[1]], v2 = verts[face[2]];
       const ax = v1.x - v0.x, ay = v1.y - v0.y, az = v1.z - v0.z;
       const bx = v2.x - v0.x, by = v2.y - v0.y, bz = v2.z - v0.z;
-      
-      const nx = ay * bz - az * by;
-      const ny = az * bx - ax * bz;
-      const nz = ax * by - ay * bx;
+      const nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
       const nlen = Math.sqrt(nx*nx + ny*ny + nz*nz) || 1;
 
-      const lx = 0.4, ly = 0.7, lz = 0.6;
+      // Işık vektörü (dokuların derinliğini hissettirmek için)
+      const lx = 0.5, ly = 0.8, lz = 0.6;
       const dot = (nx * lx + ny * ly + nz * lz) / nlen;
       
-      let shade = 0.25 + Math.abs(dot) * 0.75;
+      let shade = 0.1 + Math.max(0, dot) * 0.9;
       if (shade > 1) shade = 1;
 
       faceData.push({ p0, p1, p2, z: avgZ, shade });
@@ -424,24 +489,31 @@ class Renderer {
     for (let i = 0; i < faceData.length; i++) {
       const f = faceData[i];
       const s = f.shade;
-      // Vazonun rengi: Krem beyazı
-      const r = Math.round(245 * s);
-      const g = Math.round(240 * s);
-      const b = Math.round(225 * s);
+      
+      // Post-modern renk: Kirli beyaz / pişmiş toprak tonu
+      const r = Math.round(235 * s);
+      const g = Math.round(230 * s);
+      const b = Math.round(220 * s);
       
       ctx.fillStyle = `rgb(${r},${g},${b})`;
+      // Kenarları hafifçe çiz ki dokuların (özellikle kafesin) içi görünsün
+      ctx.strokeStyle = `rgba(0,0,0,${0.1 * s})`;
+      ctx.lineWidth = 0.5;
+      
       ctx.beginPath();
       ctx.moveTo(f.p0.x, f.p0.y);
       ctx.lineTo(f.p1.x, f.p1.y);
       ctx.lineTo(f.p2.x, f.p2.y);
+      ctx.closePath();
       ctx.fill();
+      ctx.stroke();
     }
 
     this.needsRender = false;
   }
 }
 
-// STL Dışa Aktarma
+// --- STL DIŞA AKTARMA ---
 function exportSTL(mesh, filename) {
   const { verts, faces } = mesh;
   const lines = ['solid vase'];
@@ -473,102 +545,30 @@ function exportSTL(mesh, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-const mainRenderer = new Renderer(document.getElementById('canvasWrap'), true);
+// --- UYGULAMA MANTIĞI ---
+const mainRenderer = new Renderer(document.getElementById('canvasWrap'));
 let currentMesh = null;
 
 function rebuild() {
   currentMesh = buildMesh();
   mainRenderer.setMesh(currentMesh);
   document.getElementById('info').textContent = `VERTEX: ${currentMesh.verts.length}`;
-  mainRenderer.needsRender = true;
 }
 
-const sliderMap = {
-  height:'heightVal', baseR:'baseRVal', neckR:'neckRVal',
-  bulge:'bulgeVal', twist:'twistVal', wave:'waveVal', segments:'segmentsVal',
-};
-Object.entries(sliderMap).forEach(([k, valId]) => {
-  const input = document.getElementById(k);
-  const label = document.getElementById(valId);
-  input.addEventListener('input', e => {
-    params[k] = parseFloat(e.target.value);
-    label.textContent = e.target.value;
-    rebuild();
-  });
-});
+// Stil Uygulayıcı
+function applyStyle(style, btn) {
+  document.querySelectorAll('.style-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
 
-document.getElementById('randomBtn').addEventListener('click', () => {
-  const r = (a, b, s=1) => {
-    const v = a + Math.random()*(b-a);
-    return s === 1 ? Math.round(v) : Math.round(v/s)*s;
-  };
-  const np = {
-    height: r(80, 190), baseR: r(15, 50), neckR: r(10, 40),
-    bulge: r(0, 50), twist: r(0, 6, 0.5), wave: r(0, 8), segments: r(3, 10),
-  };
-  Object.entries(np).forEach(([k, v]) => {
-    params[k] = v;
-    document.getElementById(k).value = v;
-    document.getElementById(sliderMap[k]).textContent = v;
-  });
-  rebuild();
-});
+  let np = {};
+  if (style === 'classic') {
+    np = { height:120, baseR:30, neckR:22, bulge:25, twist:0, wave:0, segments:4 };
+  } else if (style === 'brutalist') {
+    np = { height:160, baseR:55, neckR:50, bulge:10, twist:0, wave:0, segments:6 };
+  } else if (style === 'organic') {
+    np = { height:180, baseR:20, neckR:15, bulge:50, twist:4, wave:8, segments:4 };
+  } else if (style === 'cyber') {
+    np = { height:140, baseR:45, neckR:25, bulge:0, twist:2, wave:0, segments:12 };
+  }
 
-document.getElementById('handle').addEventListener('click', () => {
-  document.getElementById('panel').classList.toggle('collapsed');
-  setTimeout(() => mainRenderer.resize(), 400); // Panel açılınca boyutu düzelt
-});
-
-document.getElementById('exportBtn').addEventListener('click', () => {
-  if (!currentMesh) return;
-  exportSTL(currentMesh, `vaso-${Date.now()}.stl`);
-  const btn = document.getElementById('exportBtn');
-  const orig = btn.textContent;
-  btn.textContent = '✓ İNDİ';
-  setTimeout(() => btn.textContent = orig, 1200);
-});
-
-let previewRenderer = null;
-let previewMesh = null;
-
-function openPreview() {
-  document.getElementById('previewModal').classList.add('open');
-  requestAnimationFrame(() => {
-    const wrap = document.getElementById('previewWrap');
-    if (!previewRenderer) previewRenderer = new Renderer(wrap);
-    else previewRenderer.resize();
-
-    previewMesh = buildMesh();
-    previewRenderer.setMesh(previewMesh);
-    
-    document.getElementById('previewSub').textContent = `HAZIR`;
-  });
-}
-
-function closePreview() {
-  document.getElementById('previewModal').classList.remove('open');
-}
-
-document.getElementById('previewBtn').addEventListener('click', openPreview);
-document.getElementById('closePreview').addEventListener('click', closePreview);
-document.getElementById('closePreview2').addEventListener('click', closePreview);
-document.getElementById('exportFromPreview').addEventListener('click', () => {
-  if (previewMesh) exportSTL(previewMesh, `vaso-${Date.now()}.stl`);
-});
-
-window.addEventListener('resize', () => {
-  mainRenderer.resize();
-  if (previewRenderer) previewRenderer.resize();
-});
-
-function loop() {
-  mainRenderer.render();
-  if (previewRenderer) previewRenderer.render();
-  requestAnimationFrame(loop);
-}
-
-rebuild();
-loop();
-</script>
-</body>
-</html>
+  Object.entries(np).forEach(([
