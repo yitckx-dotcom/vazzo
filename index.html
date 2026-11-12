@@ -172,14 +172,13 @@
 <script>
 'use strict';
 
-// ============ PARAMETRELER ============
 const params = {
   height: 120, baseR: 30, neckR: 22, bulge: 25,
   twist: 0, wave: 0, segments: 4,
-  radialSegments: 48, heightSegments: 50,
+  radialSegments: 36, // Daha hafif render için düşürüldü
+  heightSegments: 40,
 };
 
-// ============ GEOMETRİ ÜRETİCİ ============
 function profileRadius(t) {
   const { baseR, neckR, bulge } = params;
   const baseCurve = baseR * (1 - t) + neckR * t;
@@ -234,54 +233,52 @@ function buildMesh() {
 
   const bottomCenter = verts.length;
   verts.push({ x: 0, y: 0, z: 0 });
-  for (let ix = 0; ix < radialSegments; ix++) {
-    faces.push([bottomCenter, ix + 1, ix]);
-  }
+  for (let ix = 0; ix < radialSegments; ix++) faces.push([bottomCenter, ix + 1, ix]);
 
   const topStart = heightSegments * rowLen;
   const topCenter = verts.length;
   verts.push({ x: 0, y: height, z: 0 });
-  for (let ix = 0; ix < radialSegments; ix++) {
-    faces.push([topCenter, topStart + ix, topStart + ix + 1]);
-  }
+  for (let ix = 0; ix < radialSegments; ix++) faces.push([topCenter, topStart + ix, topStart + ix + 1]);
 
   return { verts, faces };
 }
 
-// ============ MINI 3D RENDERER (Canvas 2D) ============
 class Renderer {
-  constructor(container) {
+  constructor(container, isMain = false) {
     this.container = container;
     this.canvas = document.createElement('canvas');
-    this.ctx = this.canvas.getContext('2d');
+    this.ctx = this.canvas.getContext('2d', { alpha: false }); // Performans artışı
     container.appendChild(this.canvas);
-    this.resize();
-
-    this.rotX = 0.25;
+    this.isMain = isMain;
+    
+    this.rotX = 0.2;
     this.rotY = 0.6;
     this.zoom = 1;
-    this.targetY = params.height * 0.5;
-
+    
     this.dragging = false;
     this.lastX = 0; this.lastY = 0;
     this.autoRotate = true;
-    this.autoRotateSpeed = 0.003;
     this.lastInteraction = 0;
+
+    // Yavaş render döngüsünü önlemek için requestAnimationFrame kontrolü
+    this.needsRender = true;
 
     this.bindEvents();
     this.mesh = null;
+    this.resize();
   }
 
   resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const rect = this.container.getBoundingClientRect();
-    this.w = rect.width;
-    this.h = rect.height;
+    this.w = rect.width || window.innerWidth;
+    this.h = rect.height || window.innerHeight;
     this.canvas.width = this.w * dpr;
     this.canvas.height = this.h * dpr;
     this.canvas.style.width = this.w + 'px';
     this.canvas.style.height = this.h + 'px';
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this.needsRender = true;
   }
 
   bindEvents() {
@@ -296,16 +293,20 @@ class Renderer {
       if (!this.dragging) return;
       const dx = x - this.lastX;
       const dy = y - this.lastY;
-      this.rotY += dx * 0.008;
-      this.rotX += dy * 0.008;
+      this.rotY += dx * 0.01;
+      this.rotX += dy * 0.01;
       this.rotX = Math.max(-1.4, Math.min(1.4, this.rotX));
       this.lastX = x; this.lastY = y;
+      this.needsRender = true;
     };
     const onEnd = () => {
       this.dragging = false;
       setTimeout(() => {
-        if (Date.now() - this.lastInteraction > 1500) this.autoRotate = true;
-      }, 1500);
+        if (Date.now() - this.lastInteraction > 1000) {
+          this.autoRotate = true;
+          this.needsRender = true;
+        }
+      }, 1000);
     };
 
     c.addEventListener('mousedown', e => { onStart(e.clientX, e.clientY); });
@@ -334,117 +335,113 @@ class Renderer {
         this.zoom *= d / this.pinchDist;
         this.zoom = Math.max(0.4, Math.min(2.5, this.zoom));
         this.pinchDist = d;
+        this.needsRender = true;
       }
     }, { passive: false });
 
     c.addEventListener('touchend', () => { onEnd(); this.pinchDist = null; }, { passive: true });
-
-    c.addEventListener('wheel', e => {
-      e.preventDefault();
-      this.zoom *= e.deltaY > 0 ? 1.1 : 0.9;
-      this.zoom = Math.max(0.4, Math.min(2.5, this.zoom));
-      this.lastInteraction = Date.now();
-    }, { passive: false });
   }
 
-  setMesh(mesh) { this.mesh = mesh; }
+  setMesh(mesh) { 
+    this.mesh = mesh; 
+    this.needsRender = true; 
+  }
 
   project(p) {
     const cy = Math.cos(this.rotY), sy = Math.sin(this.rotY);
     const cx = Math.cos(this.rotX), sx = Math.sin(this.rotX);
-    const py = p.y - this.targetY;
+    const py = p.y - (params.height * 0.5);
+    
     const x1 = p.x * cy + p.z * sy;
     const z1 = -p.x * sy + p.z * cy;
     const y1 = py;
+    
     const y2 = y1 * cx - z1 * sx;
     const z2 = y1 * sx + z1 * cx;
-    const camDist = 400;
+    
+    const camDist = 450;
     const z = z2 + camDist;
     if (z < 1) return null;
+    
     const fov = 400;
     const scale = (fov / z) * this.zoom;
+    
     return {
       x: this.w / 2 + x1 * scale,
       y: this.h / 2 - y2 * scale,
       z: z2,
-      scale: scale,
     };
   }
 
   render() {
+    if (!this.needsRender && !this.autoRotate) return;
+    
+    if (this.autoRotate && !this.dragging) {
+      this.rotY += 0.005;
+    }
+
     const ctx = this.ctx;
     const w = this.w, h = this.h;
-    const grad = ctx.createRadialGradient(w/2, h*0.3, 0, w/2, h*0.5, Math.max(w,h)*0.8);
-    grad.addColorStop(0, '#1a1a1a');
-    grad.addColorStop(1, '#050505');
-    ctx.fillStyle = grad;
+    
+    ctx.fillStyle = '#0a0a0a';
     ctx.fillRect(0, 0, w, h);
 
     if (!this.mesh) return;
-
-    if (this.autoRotate && !this.dragging) {
-      this.rotY += this.autoRotateSpeed;
-    }
 
     const { verts, faces } = this.mesh;
     const projected = verts.map(v => this.project(v));
     const faceData = [];
 
-    for (const face of faces) {
+    for (let i = 0; i < faces.length; i++) {
+      const face = faces[i];
       const p0 = projected[face[0]];
       const p1 = projected[face[1]];
       const p2 = projected[face[2]];
       if (!p0 || !p1 || !p2) continue;
 
       const avgZ = (p0.z + p1.z + p2.z) / 3;
+      
       const v0 = verts[face[0]], v1 = verts[face[1]], v2 = verts[face[2]];
       const ax = v1.x - v0.x, ay = v1.y - v0.y, az = v1.z - v0.z;
       const bx = v2.x - v0.x, by = v2.y - v0.y, bz = v2.z - v0.z;
+      
       const nx = ay * bz - az * by;
       const ny = az * bx - ax * bz;
       const nz = ax * by - ay * bx;
       const nlen = Math.sqrt(nx*nx + ny*ny + nz*nz) || 1;
 
-      const lx = 0.5, ly = 0.7, lz = 0.5;
-      const lightLen = Math.sqrt(lx*lx + ly*ly + lz*lz);
-      let dot = (nx * lx + ny * ly + nz * lz) / (nlen * lightLen);
-      const shade = Math.max(0.15, Math.min(1, 0.25 + dot * 0.85));
+      const lx = 0.4, ly = 0.7, lz = 0.6;
+      const dot = (nx * lx + ny * ly + nz * lz) / nlen;
+      
+      let shade = 0.25 + Math.abs(dot) * 0.75;
+      if (shade > 1) shade = 1;
 
       faceData.push({ p0, p1, p2, z: avgZ, shade });
     }
 
     faceData.sort((a, b) => b.z - a.z);
 
-    for (const f of faceData) {
+    for (let i = 0; i < faceData.length; i++) {
+      const f = faceData[i];
       const s = f.shade;
+      // Vazonun rengi: Krem beyazı
       const r = Math.round(245 * s);
       const g = Math.round(240 * s);
-      const b = Math.round(232 * s);
+      const b = Math.round(225 * s);
+      
       ctx.fillStyle = `rgb(${r},${g},${b})`;
-      ctx.strokeStyle = `rgb(${r},${g},${b})`;
-      ctx.lineWidth = 0.5;
       ctx.beginPath();
       ctx.moveTo(f.p0.x, f.p0.y);
       ctx.lineTo(f.p1.x, f.p1.y);
       ctx.lineTo(f.p2.x, f.p2.y);
-      ctx.closePath();
       ctx.fill();
-      ctx.stroke();
     }
 
-    ctx.globalAlpha = 0.35;
-    const shadowGrad = ctx.createRadialGradient(w/2, h*0.82, 0, w/2, h*0.82, w*0.35);
-    shadowGrad.addColorStop(0, 'rgba(0,0,0,0.8)');
-    shadowGrad.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = shadowGrad;
-    ctx.beginPath();
-    ctx.ellipse(w/2, h*0.82, w*0.35 * this.zoom, h*0.06 * this.zoom, 0, 0, Math.PI*2);
-    ctx.fill();
-    ctx.globalAlpha = 1;
+    this.needsRender = false;
   }
 }
 
-// ============ STL EXPORT ============
+// STL Dışa Aktarma
 function exportSTL(mesh, filename) {
   const { verts, faces } = mesh;
   const lines = ['solid vase'];
@@ -455,11 +452,11 @@ function exportSTL(mesh, filename) {
     let nx = ay*bz - az*by, ny = az*bx - ax*bz, nz = ax*by - ay*bx;
     const len = Math.hypot(nx, ny, nz) || 1;
     nx/=len; ny/=len; nz/=len;
-    lines.push(`  facet normal ${nx.toFixed(6)} ${ny.toFixed(6)} ${nz.toFixed(6)}`);
+    lines.push(`  facet normal ${nx.toFixed(4)} ${ny.toFixed(4)} ${nz.toFixed(4)}`);
     lines.push(`    outer loop`);
-    lines.push(`      vertex ${v0.x.toFixed(4)} ${v0.y.toFixed(4)} ${v0.z.toFixed(4)}`);
-    lines.push(`      vertex ${v1.x.toFixed(4)} ${v1.y.toFixed(4)} ${v1.z.toFixed(4)}`);
-    lines.push(`      vertex ${v2.x.toFixed(4)} ${v2.y.toFixed(4)} ${v2.z.toFixed(4)}`);
+    lines.push(`      vertex ${v0.x.toFixed(3)} ${v0.y.toFixed(3)} ${v0.z.toFixed(3)}`);
+    lines.push(`      vertex ${v1.x.toFixed(3)} ${v1.y.toFixed(3)} ${v1.z.toFixed(3)}`);
+    lines.push(`      vertex ${v2.x.toFixed(3)} ${v2.y.toFixed(3)} ${v2.z.toFixed(3)}`);
     lines.push(`    endloop`);
     lines.push(`  endfacet`);
   }
@@ -476,16 +473,14 @@ function exportSTL(mesh, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// ============ UYGULAMA ============
-const mainRenderer = new Renderer(document.getElementById('canvasWrap'));
+const mainRenderer = new Renderer(document.getElementById('canvasWrap'), true);
 let currentMesh = null;
 
 function rebuild() {
   currentMesh = buildMesh();
-  mainRenderer.mesh = currentMesh;
-  mainRenderer.targetY = params.height * 0.5;
-  const vCount = currentMesh.verts.length;
-  document.getElementById('info').textContent = `VERTEX: ${vCount.toLocaleString('tr-TR')}`;
+  mainRenderer.setMesh(currentMesh);
+  document.getElementById('info').textContent = `VERTEX: ${currentMesh.verts.length}`;
+  mainRenderer.needsRender = true;
 }
 
 const sliderMap = {
@@ -500,8 +495,6 @@ Object.entries(sliderMap).forEach(([k, valId]) => {
     label.textContent = e.target.value;
     rebuild();
   });
-  params[k] = parseFloat(input.value);
-  label.textContent = input.value;
 });
 
 document.getElementById('randomBtn').addEventListener('click', () => {
@@ -521,9 +514,9 @@ document.getElementById('randomBtn').addEventListener('click', () => {
   rebuild();
 });
 
-const panel = document.getElementById('panel');
 document.getElementById('handle').addEventListener('click', () => {
-  panel.classList.toggle('collapsed');
+  document.getElementById('panel').classList.toggle('collapsed');
+  setTimeout(() => mainRenderer.resize(), 400); // Panel açılınca boyutu düzelt
 });
 
 document.getElementById('exportBtn').addEventListener('click', () => {
@@ -535,42 +528,47 @@ document.getElementById('exportBtn').addEventListener('click', () => {
   setTimeout(() => btn.textContent = orig, 1200);
 });
 
-// ============ ÖNİZLEME MODAL ============
 let previewRenderer = null;
 let previewMesh = null;
-let previewActive = false;
 
 function openPreview() {
-  const modal = document.getElementById('previewModal');
-  modal.classList.add('open');
-
+  document.getElementById('previewModal').classList.add('open');
   requestAnimationFrame(() => {
     const wrap = document.getElementById('previewWrap');
-    if (!previewRenderer) {
-      previewRenderer = new Renderer(wrap);
-      previewRenderer.autoRotateSpeed = 0.005;
-    } else {
-      previewRenderer.resize();
-    }
+    if (!previewRenderer) previewRenderer = new Renderer(wrap);
+    else previewRenderer.resize();
 
     previewMesh = buildMesh();
-    previewRenderer.mesh = previewMesh;
-    previewRenderer.targetY = params.height * 0.5;
-
-    const vc = previewMesh.verts.length;
-    const tc = previewMesh.faces.length;
-    document.getElementById('previewSub').textContent =
-      `${vc.toLocaleString('tr-TR')} VERTEX · ${tc.toLocaleString('tr-TR')} TRIANGLE`;
-
-    previewActive = true;
+    previewRenderer.setMesh(previewMesh);
+    
+    document.getElementById('previewSub').textContent = `HAZIR`;
   });
 }
 
 function closePreview() {
   document.getElementById('previewModal').classList.remove('open');
-  previewActive = false;
 }
 
 document.getElementById('previewBtn').addEventListener('click', openPreview);
 document.getElementById('closePreview').addEventListener('click', closePreview);
-document.getEleme
+document.getElementById('closePreview2').addEventListener('click', closePreview);
+document.getElementById('exportFromPreview').addEventListener('click', () => {
+  if (previewMesh) exportSTL(previewMesh, `vaso-${Date.now()}.stl`);
+});
+
+window.addEventListener('resize', () => {
+  mainRenderer.resize();
+  if (previewRenderer) previewRenderer.resize();
+});
+
+function loop() {
+  mainRenderer.render();
+  if (previewRenderer) previewRenderer.render();
+  requestAnimationFrame(loop);
+}
+
+rebuild();
+loop();
+</script>
+</body>
+</html>
