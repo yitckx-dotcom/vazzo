@@ -176,7 +176,7 @@
 const params = {
   height: 120, baseR: 30, neckR: 22, bulge: 25,
   twist: 0, wave: 0, segments: 4,
-  radialSegments: 64, heightSegments: 60,
+  radialSegments: 48, heightSegments: 50,
 };
 
 // ============ GEOMETRİ ÜRETİCİ ============
@@ -193,7 +193,6 @@ function buildMesh() {
   const verts = [];
   const faces = [];
 
-  // Vertex grid
   for (let iy = 0; iy <= heightSegments; iy++) {
     const t = iy / heightSegments;
     const y = t * height;
@@ -222,7 +221,6 @@ function buildMesh() {
 
   const rowLen = radialSegments + 1;
 
-  // Side faces
   for (let iy = 0; iy < heightSegments; iy++) {
     for (let ix = 0; ix < radialSegments; ix++) {
       const a = iy * rowLen + ix;
@@ -234,14 +232,12 @@ function buildMesh() {
     }
   }
 
-  // Bottom cap
   const bottomCenter = verts.length;
   verts.push({ x: 0, y: 0, z: 0 });
   for (let ix = 0; ix < radialSegments; ix++) {
     faces.push([bottomCenter, ix + 1, ix]);
   }
 
-  // Top cap
   const topStart = heightSegments * rowLen;
   const topCenter = verts.length;
   verts.push({ x: 0, y: height, z: 0 });
@@ -261,13 +257,11 @@ class Renderer {
     container.appendChild(this.canvas);
     this.resize();
 
-    // Kamera açıları
     this.rotX = 0.25;
     this.rotY = 0.6;
     this.zoom = 1;
     this.targetY = params.height * 0.5;
 
-    // Drag state
     this.dragging = false;
     this.lastX = 0; this.lastY = 0;
     this.autoRotate = true;
@@ -356,30 +350,19 @@ class Renderer {
   setMesh(mesh) { this.mesh = mesh; }
 
   project(p) {
-    // Rotasyon: önce Y (yaw), sonra X (pitch)
     const cy = Math.cos(this.rotY), sy = Math.sin(this.rotY);
     const cx = Math.cos(this.rotX), sx = Math.sin(this.rotX);
-
-    // Merkezi hedefe göre kaydır
     const py = p.y - this.targetY;
-
-    // Yaw (Y etrafında)
     const x1 = p.x * cy + p.z * sy;
     const z1 = -p.x * sy + p.z * cy;
     const y1 = py;
-
-    // Pitch (X etrafında)
     const y2 = y1 * cx - z1 * sx;
     const z2 = y1 * sx + z1 * cx;
-
-    // Perspective
     const camDist = 400;
     const z = z2 + camDist;
     if (z < 1) return null;
-
     const fov = 400;
     const scale = (fov / z) * this.zoom;
-
     return {
       x: this.w / 2 + x1 * scale,
       y: this.h / 2 - y2 * scale,
@@ -391,8 +374,6 @@ class Renderer {
   render() {
     const ctx = this.ctx;
     const w = this.w, h = this.h;
-
-    // Arkaplan gradient
     const grad = ctx.createRadialGradient(w/2, h*0.3, 0, w/2, h*0.5, Math.max(w,h)*0.8);
     grad.addColorStop(0, '#1a1a1a');
     grad.addColorStop(1, '#050505');
@@ -401,18 +382,14 @@ class Renderer {
 
     if (!this.mesh) return;
 
-    // Auto rotate
     if (this.autoRotate && !this.dragging) {
       this.rotY += this.autoRotateSpeed;
     }
 
     const { verts, faces } = this.mesh;
-
-    // Project all vertices
     const projected = verts.map(v => this.project(v));
-
-    // Face'leri z'ye göre sırala (back-to-front)
     const faceData = [];
+
     for (const face of faces) {
       const p0 = projected[face[0]];
       const p1 = projected[face[1]];
@@ -420,11 +397,7 @@ class Renderer {
       if (!p0 || !p1 || !p2) continue;
 
       const avgZ = (p0.z + p1.z + p2.z) / 3;
-
-      // Normal hesapla (world space)
-      const v0 = verts[face[0]];
-      const v1 = verts[face[1]];
-      const v2 = verts[face[2]];
+      const v0 = verts[face[0]], v1 = verts[face[1]], v2 = verts[face[2]];
       const ax = v1.x - v0.x, ay = v1.y - v0.y, az = v1.z - v0.z;
       const bx = v2.x - v0.x, by = v2.y - v0.y, bz = v2.z - v0.z;
       const nx = ay * bz - az * by;
@@ -432,26 +405,18 @@ class Renderer {
       const nz = ax * by - ay * bx;
       const nlen = Math.sqrt(nx*nx + ny*ny + nz*nz) || 1;
 
-      // Işık yönü (yukarı-sağ-ön)
       const lx = 0.5, ly = 0.7, lz = 0.5;
-      let dot = (nx/lx*1 + ny/ly*1 + nz/lz*1);
-      // Normalize light
       const lightLen = Math.sqrt(lx*lx + ly*ly + lz*lz);
-      dot = (nx * lx + ny * ly + nz * lz) / (nlen * lightLen);
-
-      // Ambient + diffuse
+      let dot = (nx * lx + ny * ly + nz * lz) / (nlen * lightLen);
       const shade = Math.max(0.15, Math.min(1, 0.25 + dot * 0.85));
 
       faceData.push({ p0, p1, p2, z: avgZ, shade });
     }
 
-    // Sort: en arkadan öne
     faceData.sort((a, b) => b.z - a.z);
 
-    // Draw
     for (const f of faceData) {
       const s = f.shade;
-      // Sıcak krem renk + hafif neon vurgu
       const r = Math.round(245 * s);
       const g = Math.round(240 * s);
       const b = Math.round(232 * s);
@@ -464,11 +429,9 @@ class Renderer {
       ctx.lineTo(f.p2.x, f.p2.y);
       ctx.closePath();
       ctx.fill();
-      // Edges (anti-alias için)
       ctx.stroke();
     }
 
-    // Zemin gölgesi (basit elips)
     ctx.globalAlpha = 0.35;
     const shadowGrad = ctx.createRadialGradient(w/2, h*0.82, 0, w/2, h*0.82, w*0.35);
     shadowGrad.addColorStop(0, 'rgba(0,0,0,0.8)');
@@ -487,7 +450,6 @@ function exportSTL(mesh, filename) {
   const lines = ['solid vase'];
   for (const [i0, i1, i2] of faces) {
     const v0 = verts[i0], v1 = verts[i1], v2 = verts[i2];
-    // Normal
     const ax = v1.x-v0.x, ay = v1.y-v0.y, az = v1.z-v0.z;
     const bx = v2.x-v0.x, by = v2.y-v0.y, bz = v2.z-v0.z;
     let nx = ay*bz - az*by, ny = az*bx - ax*bz, nz = ax*by - ay*bx;
@@ -521,11 +483,11 @@ let currentMesh = null;
 function rebuild() {
   currentMesh = buildMesh();
   mainRenderer.mesh = currentMesh;
+  mainRenderer.targetY = params.height * 0.5;
   const vCount = currentMesh.verts.length;
   document.getElementById('info').textContent = `VERTEX: ${vCount.toLocaleString('tr-TR')}`;
 }
 
-// Slider binding
 const sliderMap = {
   height:'heightVal', baseR:'baseRVal', neckR:'neckRVal',
   bulge:'bulgeVal', twist:'twistVal', wave:'waveVal', segments:'segmentsVal',
@@ -542,7 +504,6 @@ Object.entries(sliderMap).forEach(([k, valId]) => {
   label.textContent = input.value;
 });
 
-// Random
 document.getElementById('randomBtn').addEventListener('click', () => {
   const r = (a, b, s=1) => {
     const v = a + Math.random()*(b-a);
@@ -560,13 +521,11 @@ document.getElementById('randomBtn').addEventListener('click', () => {
   rebuild();
 });
 
-// Panel toggle
 const panel = document.getElementById('panel');
 document.getElementById('handle').addEventListener('click', () => {
   panel.classList.toggle('collapsed');
 });
 
-// Export
 document.getElementById('exportBtn').addEventListener('click', () => {
   if (!currentMesh) return;
   exportSTL(currentMesh, `vaso-${Date.now()}.stl`);
@@ -579,6 +538,7 @@ document.getElementById('exportBtn').addEventListener('click', () => {
 // ============ ÖNİZLEME MODAL ============
 let previewRenderer = null;
 let previewMesh = null;
+let previewActive = false;
 
 function openPreview() {
   const modal = document.getElementById('previewModal');
@@ -589,4 +549,28 @@ function openPreview() {
     if (!previewRenderer) {
       previewRenderer = new Renderer(wrap);
       previewRenderer.autoRotateSpeed = 0.005;
-    } els
+    } else {
+      previewRenderer.resize();
+    }
+
+    previewMesh = buildMesh();
+    previewRenderer.mesh = previewMesh;
+    previewRenderer.targetY = params.height * 0.5;
+
+    const vc = previewMesh.verts.length;
+    const tc = previewMesh.faces.length;
+    document.getElementById('previewSub').textContent =
+      `${vc.toLocaleString('tr-TR')} VERTEX · ${tc.toLocaleString('tr-TR')} TRIANGLE`;
+
+    previewActive = true;
+  });
+}
+
+function closePreview() {
+  document.getElementById('previewModal').classList.remove('open');
+  previewActive = false;
+}
+
+document.getElementById('previewBtn').addEventListener('click', openPreview);
+document.getElementById('closePreview').addEventListener('click', closePreview);
+document.getEleme
