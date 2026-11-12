@@ -122,15 +122,16 @@
   }
 
   .modal {
-    position:fixed; inset:0; background:rgba(5,5,5,0.97);
-    backdrop-filter:blur(12px); z-index:200;
+    position:fixed; inset:0; background:rgba(5,5,5,0.98); /* Arka plan tamamen kapatıldı */
+    z-index:200;
     display:flex; flex-direction:column;
-    opacity:0; pointer-events:none; transition:opacity 0.3s;
+    opacity:0; pointer-events:none; transition:opacity 0.2s;
   }
   .modal.open { opacity:1; pointer-events:auto; }
   .modal-header {
     padding:14px 16px; display:flex; justify-content:space-between;
     align-items:center; border-bottom:1px solid rgba(255,255,255,0.08);
+    flex-shrink: 0;
   }
   .modal-title { font-weight:900; font-size:13px; }
   .modal-title span { color:#00ff9d; }
@@ -140,10 +141,19 @@
     border:1px solid rgba(255,255,255,0.2); color:#f0f0f0;
     font-size:16px; cursor:pointer;
   }
-  #previewWrap { flex:1; position:relative; touch-action:none; display:flex; align-items:center; justify-content:center; }
+  #previewWrap { 
+    flex:1; 
+    position:relative; 
+    touch-action:none; 
+    display:flex; 
+    align-items:center; 
+    justify-content:center; 
+    overflow: hidden;
+  }
   .modal-footer {
     padding:12px 16px calc(12px + env(safe-area-inset-bottom));
     display:flex; gap:8px; border-top:1px solid rgba(255,255,255,0.08);
+    flex-shrink: 0;
   }
 </style>
 </head>
@@ -151,7 +161,7 @@
 
 <header>
   <div class="logo">VASO<span>·</span>GEN</div>
-  <div class="tag">POST-MODERN v2.1</div>
+  <div class="tag">POST-MODERN v2.2</div>
 </header>
 
 <div id="canvasWrap"></div>
@@ -218,7 +228,7 @@ const params = {
   twist: 0, wave: 0, segments: 4,
   texIntensity: 40,
   texture: 'smooth',
-  radialSegments: 40, // Performans ve doku dengesi
+  radialSegments: 40, 
   heightSegments: 50,
 };
 
@@ -340,16 +350,24 @@ class Renderer {
 
   resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    // Modal açıldığında boyutun sıfır olmasını engellemek için fallback eklendi
-    const w = this.container.clientWidth || window.innerWidth;
-    const h = this.container.clientHeight || window.innerHeight;
     
-    this.w = w;
-    this.h = h;
-    this.canvas.width = w * dpr;
-    this.canvas.height = h * dpr;
-    this.canvas.style.width = w + 'px';
-    this.canvas.style.height = h + 'px';
+    // EKRAN BOYUTUNU PENCEREYE SABİTLİYORUZ (Böylece hep dolu görünür)
+    this.w = window.innerWidth;
+    this.h = window.innerHeight;
+    
+    this.canvas.width = this.w * dpr;
+    this.canvas.height = this.h * dpr;
+    this.canvas.style.width = this.w + 'px';
+    this.canvas.style.height = this.h + 'px';
+    
+    // Canvas'ı ortala
+    this.canvas.style.position = 'absolute';
+    this.canvas.style.top = '50%';
+    this.canvas.style.left = '50%';
+    this.canvas.style.transform = 'translate(-50%, -50%)';
+    this.canvas.style.maxWidth = '100%';
+    this.canvas.style.maxHeight = '100%';
+
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.needsRender = true;
   }
@@ -560,4 +578,84 @@ const sliderMap = {
 };
 
 Object.entries(sliderMap).forEach(([k, valId]) => {
-  const input = docume
+  const input = document.getElementById(k);
+  const label = document.getElementById(valId);
+  input.addEventListener('input', e => {
+    params[k] = parseFloat(e.target.value);
+    label.textContent = e.target.value;
+    rebuild();
+  });
+  if(input.value) {
+     params[k] = parseFloat(input.value);
+     label.textContent = input.value;
+  }
+});
+
+document.getElementById('handle').addEventListener('click', () => {
+  document.getElementById('panel').classList.toggle('collapsed');
+  setTimeout(() => mainRenderer.resize(), 400);
+});
+
+document.getElementById('exportBtn').addEventListener('click', () => {
+  if (!currentMesh) return;
+  exportSTL(currentMesh, `vaso-${Date.now()}.stl`);
+  const btn = document.getElementById('exportBtn');
+  const orig = btn.textContent;
+  btn.textContent = '✓ İNDİ';
+  setTimeout(() => btn.textContent = orig, 1200);
+});
+
+// MODAL ÖNİZLEME
+let previewRenderer = null;
+let previewMesh = null;
+
+function openPreview() {
+  const modal = document.getElementById('previewModal');
+  modal.classList.add('open');
+  
+  // Ekran boyutları otursun diye çok kısa bir bekleme
+  setTimeout(() => {
+    const wrap = document.getElementById('previewWrap');
+    
+    if (!previewRenderer) {
+      previewRenderer = new Renderer(wrap);
+    }
+    
+    // Ekran boyutunu tekrar al
+    previewRenderer.resize();
+
+    previewMesh = buildMesh();
+    previewRenderer.setMesh(previewMesh);
+    previewRenderer.autoRotate = true;
+    
+    document.getElementById('previewSub').textContent = `${previewMesh.verts.length} VERTEX`;
+  }, 150); 
+}
+
+function closePreview() {
+  document.getElementById('previewModal').classList.remove('open');
+}
+
+document.getElementById('previewBtn').addEventListener('click', openPreview);
+document.getElementById('closePreview').addEventListener('click', closePreview);
+document.getElementById('closePreview2').addEventListener('click', closePreview);
+document.getElementById('exportFromPreview').addEventListener('click', () => {
+  if (previewMesh) exportSTL(previewMesh, `vaso-${Date.now()}.stl`);
+});
+
+window.addEventListener('resize', () => {
+  mainRenderer.resize();
+  if (previewRenderer) previewRenderer.resize();
+});
+
+function loop() {
+  mainRenderer.render();
+  if (previewRenderer) previewRenderer.render();
+  requestAnimationFrame(loop);
+}
+
+rebuild();
+loop();
+</script>
+</body>
+</html>
