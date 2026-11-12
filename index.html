@@ -52,7 +52,6 @@
   }
   .panel.collapsed .toggle-btn { transform:rotate(180deg); }
 
-  /* POST-MODERN DNA BUTONLARI */
   .styles {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -71,42 +70,23 @@
     cursor: pointer;
     transition: all 0.2s;
   }
-  .style-btn.active {
-    background: #ff3d00;
-    border-color: #ff3d00;
-    color: #000;
-  }
+  .style-btn.active { background: #ff3d00; border-color: #ff3d00; color: #000; }
 
   .sliders { display:flex; flex-direction:column; gap:12px; }
   .row { display:grid; grid-template-columns:80px 1fr 40px; align-items:center; gap:8px; }
   .lbl { font-size:9px; letter-spacing:1.2px; text-transform:uppercase; opacity:0.6; }
   .val { font-size:10px; text-align:right; color:#00ff9d; font-variant-numeric:tabular-nums; }
 
-  /* DOKU SEÇİCİ */
   .texture-row {
-    display: flex;
-    gap: 6px;
-    margin-top: 4px;
-    margin-bottom: 8px;
-    overflow-x: auto;
-    padding-bottom: 4px;
+    display: flex; gap: 6px; margin-top: 4px; margin-bottom: 8px;
+    overflow-x: auto; padding-bottom: 4px;
   }
   .tex-btn {
-    background: #111;
-    border: 1px solid #333;
-    color: #888;
-    padding: 6px 12px;
-    font-size: 9px;
-    border-radius: 20px;
-    white-space: nowrap;
-    cursor: pointer;
-    transition: all 0.2s;
+    background: #111; border: 1px solid #333; color: #888;
+    padding: 6px 12px; font-size: 9px; border-radius: 20px;
+    white-space: nowrap; cursor: pointer; transition: all 0.2s;
   }
-  .tex-btn.active {
-    background: #00ff9d;
-    border-color: #00ff9d;
-    color: #000;
-  }
+  .tex-btn.active { background: #00ff9d; border-color: #00ff9d; color: #000; }
 
   input[type=range] {
     -webkit-appearance:none; appearance:none; width:100%; height:2px;
@@ -160,7 +140,7 @@
     border:1px solid rgba(255,255,255,0.2); color:#f0f0f0;
     font-size:16px; cursor:pointer;
   }
-  #previewWrap { flex:1; position:relative; touch-action:none; }
+  #previewWrap { flex:1; position:relative; touch-action:none; display:flex; align-items:center; justify-content:center; }
   .modal-footer {
     padding:12px 16px calc(12px + env(safe-area-inset-bottom));
     display:flex; gap:8px; border-top:1px solid rgba(255,255,255,0.08);
@@ -171,7 +151,7 @@
 
 <header>
   <div class="logo">VASO<span>·</span>GEN</div>
-  <div class="tag">POST-MODERN v2.0</div>
+  <div class="tag">POST-MODERN v2.1</div>
 </header>
 
 <div id="canvasWrap"></div>
@@ -183,7 +163,6 @@
     <button class="toggle-btn">▲</button>
   </div>
 
-  <!-- HAZIR STİLLER -->
   <div class="styles">
     <button class="style-btn active" onclick="applyStyle('classic', this)">Klasik</button>
     <button class="style-btn" onclick="applyStyle('brutalist', this)">Brütal</button>
@@ -191,7 +170,6 @@
     <button class="style-btn" onclick="applyStyle('cyber', this)">Cyber</button>
   </div>
 
-  <!-- DOKULAR -->
   <div class="texture-row">
     <button class="tex-btn active" onclick="setTexture('smooth', this)">Düz</button>
     <button class="tex-btn" onclick="setTexture('ripple', this)">Kabarcık</button>
@@ -235,17 +213,15 @@
 <script>
 'use strict';
 
-// --- PARAMETRELER ---
 const params = {
   height: 120, baseR: 30, neckR: 22, bulge: 25,
   twist: 0, wave: 0, segments: 4,
   texIntensity: 40,
   texture: 'smooth',
-  radialSegments: 48, // Dokuların pürüzsüz görünmesi için biraz artırıldı
-  heightSegments: 60,
+  radialSegments: 40, // Performans ve doku dengesi
+  heightSegments: 50,
 };
 
-// --- GEOMETRİ VE DOKU ÜRETİCİ ---
 function getProfileRadius(t) {
   const { baseR, neckR, bulge } = params;
   const baseCurve = baseR * (1 - t) + neckR * t;
@@ -260,18 +236,18 @@ function getTextureOffset(u, t, theta) {
   
   let offset = 0;
   switch(params.texture) {
-    case 'ripple': // Kabarcıklar
+    case 'ripple':
       offset = Math.sin(t * 30) * Math.cos(theta * 8) * intensity * 15;
       break;
-    case 'lattice': // Kafes / Izgara
+    case 'lattice':
       const gridU = Math.abs(Math.sin(theta * 12));
       const gridV = Math.abs(Math.sin(t * 20));
       offset = (gridU * gridV) * intensity * 20 - (intensity * 10);
       break;
-    case 'stripe': // Yatay/Dikey Çizgiler
+    case 'stripe':
       offset = Math.sin(t * 50) * intensity * 10;
       break;
-    case 'checker': // Kareli
+    case 'checker':
       const checkU = Math.floor(theta / (Math.PI/6)) % 2;
       const checkV = Math.floor(t * 15) % 2;
       offset = (checkU === checkV ? 1 : -1) * intensity * 12;
@@ -298,18 +274,15 @@ function buildMesh() {
       const u = ix / radialSegments;
       const theta = u * Math.PI * 2;
       
-      // Şekil bozulması (Loblar)
       const lob = Math.cos(theta * segFactor);
       const lobMix = 0.5 + 0.5 * lob;
       const smoothLob = Math.pow(lobMix, 0.6);
       const segInf = Math.min((segFactor - 3) / 13, 1) * 0.4;
       const rSeg = rBase * (1 - segInf + segInf * (0.5 + 1.0 * smoothLob));
       
-      // Büküm ve Dalga
       const twistAngle = twist * 0.1 * t;
       const waveOff = Math.sin(t * Math.PI * 6 + theta * 3) * waveAmp;
       
-      // Doku Eklemesi
       const texOff = getTextureOffset(u, t, theta);
 
       const r = rSeg + waveOff + texOff;
@@ -332,12 +305,10 @@ function buildMesh() {
     }
   }
 
-  // Taban kapatma
   const bottomCenter = verts.length;
   verts.push({ x: 0, y: 0, z: 0 });
   for (let ix = 0; ix < radialSegments; ix++) faces.push([bottomCenter, ix + 1, ix]);
 
-  // Ağız kapatma
   const topStart = heightSegments * rowLen;
   const topCenter = verts.length;
   verts.push({ x: 0, y: height, z: 0 });
@@ -346,7 +317,6 @@ function buildMesh() {
   return { verts, faces };
 }
 
-// --- RENDERER (3D Çizim) ---
 class Renderer {
   constructor(container) {
     this.container = container;
@@ -370,13 +340,16 @@ class Renderer {
 
   resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const rect = this.container.getBoundingClientRect();
-    this.w = rect.width || window.innerWidth;
-    this.h = rect.height || window.innerHeight;
-    this.canvas.width = this.w * dpr;
-    this.canvas.height = this.h * dpr;
-    this.canvas.style.width = this.w + 'px';
-    this.canvas.style.height = this.h + 'px';
+    // Modal açıldığında boyutun sıfır olmasını engellemek için fallback eklendi
+    const w = this.container.clientWidth || window.innerWidth;
+    const h = this.container.clientHeight || window.innerHeight;
+    
+    this.w = w;
+    this.h = h;
+    this.canvas.width = w * dpr;
+    this.canvas.height = h * dpr;
+    this.canvas.style.width = w + 'px';
+    this.canvas.style.height = h + 'px';
     this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     this.needsRender = true;
   }
@@ -474,7 +447,6 @@ class Renderer {
       const nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
       const nlen = Math.sqrt(nx*nx + ny*ny + nz*nz) || 1;
 
-      // Işık vektörü (dokuların derinliğini hissettirmek için)
       const lx = 0.5, ly = 0.8, lz = 0.6;
       const dot = (nx * lx + ny * ly + nz * lz) / nlen;
       
@@ -490,13 +462,11 @@ class Renderer {
       const f = faceData[i];
       const s = f.shade;
       
-      // Post-modern renk: Kirli beyaz / pişmiş toprak tonu
       const r = Math.round(235 * s);
       const g = Math.round(230 * s);
       const b = Math.round(220 * s);
       
       ctx.fillStyle = `rgb(${r},${g},${b})`;
-      // Kenarları hafifçe çiz ki dokuların (özellikle kafesin) içi görünsün
       ctx.strokeStyle = `rgba(0,0,0,${0.1 * s})`;
       ctx.lineWidth = 0.5;
       
@@ -513,7 +483,6 @@ class Renderer {
   }
 }
 
-// --- STL DIŞA AKTARMA ---
 function exportSTL(mesh, filename) {
   const { verts, faces } = mesh;
   const lines = ['solid vase'];
@@ -545,7 +514,6 @@ function exportSTL(mesh, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-// --- UYGULAMA MANTIĞI ---
 const mainRenderer = new Renderer(document.getElementById('canvasWrap'));
 let currentMesh = null;
 
@@ -555,7 +523,6 @@ function rebuild() {
   document.getElementById('info').textContent = `VERTEX: ${currentMesh.verts.length}`;
 }
 
-// Stil Uygulayıcı
 function applyStyle(style, btn) {
   document.querySelectorAll('.style-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
@@ -571,4 +538,26 @@ function applyStyle(style, btn) {
     np = { height:140, baseR:45, neckR:25, bulge:0, twist:2, wave:0, segments:12 };
   }
 
-  Object.entries(np).forEach(([
+  Object.entries(np).forEach(([k, v]) => {
+    params[k] = v;
+    document.getElementById(k).value = v;
+    document.getElementById(k + 'Val').textContent = v;
+  });
+  rebuild();
+}
+
+function setTexture(type, btn) {
+  document.querySelectorAll('.tex-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  params.texture = type;
+  rebuild();
+}
+
+const sliderMap = {
+  height:'heightVal', baseR:'baseRVal', neckR:'neckRVal',
+  bulge:'bulgeVal', twist:'twistVal', wave:'waveVal', 
+  segments:'segmentsVal', texIntensity:'texIntensityVal'
+};
+
+Object.entries(sliderMap).forEach(([k, valId]) => {
+  const input = docume
